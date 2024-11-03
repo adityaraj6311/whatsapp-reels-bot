@@ -1,13 +1,16 @@
+const express = require("express");
 const {
   default: makeWASocket,
   DisconnectReason,
   useMultiFileAuthState,
-  fetchLatestBaileysVersion,
 } = require("@whiskeysockets/baileys");
 const axios = require("axios");
 const fs = require("fs");
 const path = require("path");
+const qrcode = require("qrcode");
 const getReel = require("./instaScrape");
+
+let qrCodeData = ""; // Variable to hold the latest QR code data
 
 async function downloadVideo(mp4Link, filename) {
   const response = await axios.get(mp4Link, { responseType: "arraybuffer" });
@@ -18,13 +21,25 @@ async function startBot() {
   const { state, saveCreds } = await useMultiFileAuthState("./auth_info");
   const sock = makeWASocket({
     auth: state,
-    printQRInTerminal: true,
+    printQRInTerminal: false, // Disable QR printing in terminal
   });
 
   sock.ev.on("creds.update", saveCreds);
 
   sock.ev.on("connection.update", (update) => {
-    const { connection, lastDisconnect } = update;
+    const { connection, lastDisconnect, qr } = update;
+
+    // If there's a QR code, generate a Base64 string
+    if (qr) {
+      qrcode.toDataURL(qr, (err, url) => {
+        if (err) {
+          console.error("Error generating QR code", err);
+        } else {
+          qrCodeData = url; // Update the QR code data
+        }
+      });
+    }
+
     if (connection === "close") {
       if (
         lastDisconnect.error?.output?.statusCode !== DisconnectReason.loggedOut
@@ -79,4 +94,31 @@ async function startBot() {
   });
 }
 
+// Initialize the WhatsApp bot
 startBot();
+
+// Set up Express server to serve the QR code
+const app = express();
+
+app.get("/", (req, res) => {
+  res.json({ qr: "/qr" });
+});
+
+app.get("/qr", (req, res) => {
+  if (qrCodeData) {
+    res.send(`
+      <html>
+        <body>
+          <h1>Scan this QR code with WhatsApp</h1>
+          <img src="${qrCodeData}" alt="QR Code"/>
+        </body>
+      </html>
+    `);
+  } else {
+    res.send("QR Code not generated yet. Please wait...");
+  }
+});
+
+app.listen(3000, () => {
+  console.log("Express server running on http://localhost:3000");
+});
