@@ -64,6 +64,8 @@ async function startBot() {
 
         if (isGroup) {
           // In a group, use extendedTextMessage for more comprehensive text handling
+          console.log(message);
+          
           text = message.message.extendedTextMessage?.text?.trim();
         } else {
           // In DMs, use conversation directly
@@ -71,6 +73,10 @@ async function startBot() {
             message.message.conversation?.trim() ||
             message.message.extendedTextMessage?.text?.trim();
         }
+        
+        console.log(isGroup)
+        console.log("text: " + text);
+        
 
         const reelRegex =
           /https:\/\/www\.instagram\.com\/(reel|reels)\/[A-Za-z0-9_-]+\/?/;
