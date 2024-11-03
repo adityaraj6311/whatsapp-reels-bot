@@ -58,37 +58,52 @@ async function startBot() {
       messageType === "conversation" ||
       messageType === "extendedTextMessage"
     ) {
-      const text =
-        message.message.conversation ||
-        message.message.extendedTextMessage.text;
+      try {
+        const isGroup = message.key.remoteJid.endsWith("@g.us");
+        let text;
 
-      const reelRegex =
-        /https:\/\/www\.instagram\.com\/(reel|reels)\/[A-Za-z0-9_-]+\/?/;
-      const match = text.match(reelRegex);
-
-      if (match) {
-        const reelLink = match[0];
-        const { mp4Link, title } = await getReel(reelLink);
-
-        if (mp4Link) {
-          const videoPath = path.resolve(__dirname, "video.mp4");
-          await downloadVideo(mp4Link, videoPath);
-
-          await sock.sendMessage(
-            message.key.remoteJid,
-            { video: { url: videoPath }, caption: title },
-            { quoted: message }
-          );
-
-          // Delete the video after sending
-          fs.unlinkSync(videoPath);
+        if (isGroup) {
+          // In a group, use extendedTextMessage for more comprehensive text handling
+          text = message.message.extendedTextMessage?.text?.trim();
         } else {
-          await sock.sendMessage(
-            message.key.remoteJid,
-            { text: "Failed to retrieve Reel video link." },
-            { quoted: message }
-          );
+          // In DMs, use conversation directly
+          text =
+            message.message.conversation?.trim() ||
+            message.message.extendedTextMessage?.text?.trim();
         }
+
+        const reelRegex =
+          /https:\/\/www\.instagram\.com\/(reel|reels)\/[A-Za-z0-9_-]+\/?/;
+        const match = text?.match(reelRegex);
+        if (!match) return;
+
+        if (match) {
+          const reelLink = match[0];
+          const { mp4Link, title } = await getReel(reelLink);
+
+          if (mp4Link) {
+            const videoPath = path.resolve(__dirname, "video.mp4");
+            await downloadVideo(mp4Link, videoPath);
+
+            await sock.sendMessage(
+              message.key.remoteJid,
+              { video: { url: videoPath }, caption: title },
+              { quoted: message }
+            );
+
+            // Delete the video after sending
+            fs.unlinkSync(videoPath);
+          } else {
+            await sock.sendMessage(
+              message.key.remoteJid,
+              { text: "Failed to retrieve Reel video link." },
+              { quoted: message }
+            );
+          }
+        }
+      } catch (error) {
+        console.log("Error in message handling", error);
+        return;
       }
     }
   });
@@ -117,6 +132,13 @@ app.get("/qr", (req, res) => {
   } else {
     res.send("QR Code not generated yet. Please wait...");
   }
+});
+
+app.get("/delauth", (req, res) => {
+  // delete auth_info folder
+  if (!fs.existsSync("./auth_info")) res.send("Auth folder not found");
+  fs.rmdirSync("./auth_info", { recursive: true });
+  res.send("Auth info deleted");
 });
 
 app.listen(process.env.PORT || 3000, () => {
