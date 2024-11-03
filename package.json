@@ -1,0 +1,8 @@
+{
+  "dependencies": {
+    "@whiskeysockets/baileys": "^6.7.9",
+    "axios": "^1.7.7",
+    "link-preview-js": "^3.0.12",
+    "qrcode-terminal": "^0.12.0"
+  }
+}
