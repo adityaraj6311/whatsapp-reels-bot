@@ -66,7 +66,7 @@ async function startBot() {
           // In a group, use extendedTextMessage for more comprehensive text handling
           console.log(message);
           
-          text = message.message.extendedTextMessage?.text?.trim();
+          text = message.message.extendedTextMessage?.text?.trim() || message.message.conversation?.trim();
         } else {
           // In DMs, use conversation directly
           text =
